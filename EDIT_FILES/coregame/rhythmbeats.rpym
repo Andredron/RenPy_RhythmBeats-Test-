@@ -1,0 +1,444 @@
+
+
+
+
+
+
+
+
+
+
+init python:
+    import json
+    import os
+    import pygame
+    import itertools
+
+    config.pygame_events.extend([
+        pygame.FINGERDOWN,
+        pygame.FINGERUP
+    ])
+
+
+
+
+    def logger(level, content):
+        print("[%s] %s" % (level, content))
+
+
+
+
+
+    class RhythmBeatsException(Exception):
+        _("""Una clase simple para emitir excepciones bajo el nombre de Ren'Py RhythmBeats.""")
+        pass
+
+    class RhythmPlayground:
+        
+        def __init__(self, fn, displayable, offset_map = 0.0, offset_game = 0.0, threshold = 0.1, failsafe = False):
+            _("""Constructor de la clase RhythmPlayground().
+            Recibe 5 parámetros (2 obligatorios) en el momento que se crea la instancia de la clase.
+            Estos parámetros son los siguientes:
+
+            fn (str):
+                Este parámetro es obligatorio, y recibe una cadena con la ruta del archivo BEAT
+                relativa a la carpeta /game de tu juego.
+                Este archivo puede ser leído incluso dentro de un paquete RPA.
+
+            displayable (str o displayable):
+                Este parámetro es obligatorio, y recibe como argumento un elemento displayable
+                que será utilizado para mostrar cada nota en la pantalla. Puedes pasar como
+                argumento una ruta de una image, o una imagen modificada con Transform().
+
+            offset_map (float):
+                Si no es 0.0, este parámetro recibe como argumento un número de punto flotante,
+                que representa el tiempo (en segundos) que se desfasa el beatmap respecto de la
+                reproducción de la pista musical. Esto debería ser un número individual de cada beatmap.
+
+            offset_game (float):
+                Si no es 0.0, este parámetro recibe como argumento un número de punto flotante
+                que representa el tiempo (en milisegundos) que se agrega como desfase
+                personalizable por el jugador.
+                Esto es útil para que el jugador pueda calibrar manualmente en caso de que perciba
+                que la cascada de notas no se sincroniza del todo bien con sus toques. En ese caso,
+                puedes pasar como argumento una variable persistente con el valor calibrado por el
+                jugador.
+
+            threshold (float):
+                Si no es 0.1, este parámetro recibe como argumento un número de punto flotante,
+                que representa el umbral de tiempo (en segundos) para detectar si el jugador ha
+                tocado la nota o no. Por defecto se ha fijado el umbral en 0.1 segundos (100ms) por
+                lo que el jugador tiene un rango total de 200ms para tocar correctamente una nota.
+
+            failsafe (bool):
+                El modo seguro permite reproducir el beatmap sin necesidad de tocar las notas.
+                Es útil en caso de querer ajustar visualmente la cascada de notas respecto
+                de la música (mediante offset_map).
+                Si es True, ejecutará el beatmap en modo seguro. Si es False, el
+                juego se ejecutará normalmente.
+            """)
+            
+            
+            
+            
+            
+            self.run_core = SpriteManager(update = self.play)
+            self.run_waterfall = SpriteManager(update = self.waterfall, event = self.tap_events)
+            
+            
+            
+            
+            self.fn = fn
+            self.displayable = displayable
+            self.miss_sound = None
+            
+            
+            self.offset = offset_map + (offset_game / 1000.0)
+            self.threshold = threshold
+            
+            
+            self.failsafe = failsafe
+            
+            
+            self.left_key = pygame.K_c
+            self.right_key = pygame.K_m
+            
+            
+            
+            
+            
+            self.core_tick = 0.01667
+            self.waterfall_tick = 0.001
+            self.map_delta = 1.04
+            
+            
+            
+            
+            self.lane_L = list()
+            self.lane_R = list()
+            
+            
+            self.spritegroup = list()
+            
+            
+            
+            
+            self.note_index = {"left" : 0, "right" : 0}
+            self.note_pass = {"left" : 0, "right" : 0}
+            self.key_tap = {"left" : 0.0, "right" : 0.0}
+            self.timestamp_log = list()
+            self.map_progress = (0, 0)
+            self.last_tap = 0.0
+            
+            
+            self.combo = 0
+            self.perfect = 0
+            self.miss = 0
+            
+            
+            self.running = {"left" : True, "right" : True}
+            self.epoch = 0.0
+            
+            
+            self.left = False
+            self.right = False
+        
+        
+        def load(self):
+            _("""Este método carga y procesa las secuencias de un archivo beatmap de
+            una canción en específico. El archivo `.beat` debe ser señalado en el
+            momento en que se crea una instancia de la clase.
+
+            Esto debe ser llamado posterior a instanciar la clase. No recibe ningún
+            argumento ni tampoco retorna datos.""")
+            
+            logger(_("Process"), _("Cargando beatmap..."))
+            
+            try:
+                with renpy.file(self.fn) as beatmap:
+                    logger(_("Stats"), _("Ruta relativa: %s.") % self.fn)
+                    
+                    bmpdata = beatmap.readlines()
+                    
+                    for keypad in bmpdata[1:]:
+                        keypad = keypad.replace("\n", "").replace("\r", "").split("|")
+                        
+                        left = keypad[0]
+                        right = keypad[1]
+                        
+                        if left != "" or right != "":
+                            if not "End" in left:
+                                self.lane_L.append(eval(left) + self.offset)
+                            
+                            if not "End" in right:
+                                self.lane_R.append(eval(right) + self.offset)
+                    
+                    
+                    self.lane_L = tuple(self.lane_L)
+                    self.lane_R = tuple(self.lane_R)
+                    
+                    logger(_("Stats"), _("Offset final: %sms.") % self.offset)
+                    logger(_("Stats"), _("Full Combo: %s notas.") % (len(self.lane_L) + len(self.lane_R)))
+                    
+                    beatmap.close()
+                    
+                    logger(_("Process"), _("Preparando waterfall (SpriteManager)..."))
+                    self.sprite_creator()
+                    logger(_("OK"), _("Beatmap listo para ejecutar.\n"))
+            
+            except Exception as open_error:
+                raise RhythmBeatsException("(%s) %s" % (type(open_error), str(open_error)))
+        
+        
+        
+        
+        
+        def tap_events(self, ev, x, y, st):
+            _("""
+            (NO DOCUMENTADO)
+            Este método recoge los eventos de Pygame para reconocer los toques
+            del jugador en el juego, ya sea con un teclado o con pantalla táctil.
+
+            NOTA: No puedo realizar lecturas de múltiples dedos en una pantalla
+            táctil, ya que Ren'Py parece limitarme los eventos de Pygame, por lo
+            que el reconocimiento de toques en móviles puede ser... desagradable =(
+            """)
+            
+            
+            if renpy.windows or renpy.linux:
+                keys = pygame.key.get_pressed()
+                self.left = keys[self.left_key]
+                self.right = keys[self.right_key]
+            
+            
+            elif renpy.android:
+                if ev.type == pygame.FINGERDOWN:
+                    if all((x in xrange(0, 400), y in xrange(0, 720))):
+                        self.left = True
+                    if all((x in xrange(880, 1280), y in xrange(0, 720))):
+                        self.right = True
+                
+                elif ev.type == pygame.FINGERUP:
+                    self.left = False
+                    self.right = False
+        
+        
+        def play(self, st):
+            _("""Se encarga del gameplay principal.
+            Este método reproduce el beatmap cargado y se encarga de realizar todos
+            los cálculos necesarios para determinar si el jugador acierta o falla
+            alguna nota.
+            Las interacciones del jugador se computan en este método respecto de un
+            tiempo de época (Epoch) dado en segundos, que por cierto, es entregada
+            gracias a la clase `DynamicDisplayable()` de Ren'Py.
+
+            No retorna ningún valor importante para el desarrollador o el jugador.""")
+            
+            
+            
+            
+            if self.running["left"] or self.running["right"]:
+                self.epoch = round(st, 2)
+            
+            if self.left:
+                self.key_tap["left"] = st
+            if self.right:
+                self.key_tap["right"] = st
+            
+            
+            
+            
+            
+            self.running["left"] = self.note_pass["left"] < len(self.lane_L)
+            self.running["right"] = self.note_pass["right"] < len(self.lane_R)
+            
+            
+            l_match = self.key_tap["left"] - self.lane_L[self.note_index["left"]]
+            r_match = self.key_tap["right"] - self.lane_R[self.note_index["right"]]
+            
+            
+            l_phase = all((l_match >= -self.threshold, l_match <= self.threshold))
+            r_phase = all((r_match >= -self.threshold, r_match <= self.threshold))
+            
+            
+            l_badnote = all((st - self.threshold > self.lane_L[self.note_index["left"]], self.key_tap["left"] < st + self.threshold))
+            r_badnote = all((st - self.threshold > self.lane_R[self.note_index["right"]], self.key_tap["right"] < st + self.threshold))
+            
+            
+            
+            
+            
+            if l_phase and self.running["left"]:
+                self.note_index["left"] += 1 if self.note_index["left"] < len(self.lane_L) -1 else 0
+                self.timestamp_log.append(l_match)
+                self.note_pass["left"] += 1
+                self.combo += 1
+                self.perfect += 1
+                
+                self.last_tap = l_match * 1000.0
+            
+            elif l_badnote and self.running["left"]:
+                if not self.failsafe:
+                    renpy.play(self.miss_sound, channel = "audio")
+                    self.combo = 0
+                    self.miss += 1
+                
+                self.note_index["left"] += 1 if self.note_index["left"] < len(self.lane_L) -1 else 0
+                self.note_pass["left"] += 1
+            
+            
+            
+            if r_phase and self.running["right"]:
+                self.note_index["right"] += 1 if self.note_index["right"] < len(self.lane_R) -1 else 0
+                self.timestamp_log.append(r_match)
+                self.note_pass["right"] += 1
+                self.combo += 1
+                self.perfect += 1
+                
+                self.last_tap = r_match * 1000.0
+            
+            elif r_badnote and self.running["right"]:
+                if not self.failsafe:
+                    renpy.play(self.miss_sound, channel = "audio")
+                    self.combo = 0
+                    self.miss += 1
+                
+                self.note_index["right"] += 1 if self.note_index["right"] < len(self.lane_R) -1 else 0
+                self.note_pass["right"] += 1
+            
+            
+            
+            self.map_progress = (self.note_pass["left"] + self.note_pass["right"], len(self.lane_L + self.lane_R))
+            
+            return 0.01667 
+        
+        
+        
+        
+        
+        def sprite_creator(self):
+            _("""Este método crea 'n' cantidad de sprites para el SpriteManager()
+            en función de la cantidad de notas que posee el beatmap.""")
+            
+            def add_note(timestamp, lane):
+                sprite = self.run_waterfall.create(self.displayable)
+                sprite.x = 560 if lane == "LEFT" else 650
+                sprite.y = -120
+                
+                self.spritegroup.append((sprite, timestamp, lane))
+            
+            for left, right in self.longest_beatmap():
+                if isinstance(left, float):
+                    add_note(left, "LEFT")
+                if isinstance(right, float):
+                    add_note(right, "RIGHT")
+            self.spritegroup = tuple(self.spritegroup)
+        
+        
+        def notetrace(self, moverange, heading, timestamp, epoch):
+            _("""Esta función calcula las coordenadas de las notas que van cayendo,
+            respecto del timestamp de esa nota y el tiempo epoch actual.""")
+            
+            trace = abs(moverange[0] - moverange[1])
+            start = epoch - (timestamp - self.map_delta)
+            timerange = (epoch * start) / timestamp
+            
+            if heading == "Y":
+                rv = (trace * timerange) - abs(moverange[0])
+                
+                if rv < moverange[0]:
+                    rv = moverange[0]
+                elif rv > moverange[1]:
+                    rv = moverange[1]
+            
+            elif heading == "XL":
+                rv = abs((trace * timerange) - moverange[0])
+                
+                if epoch > timestamp or rv < moverange[1]:
+                    rv = moverange[1]
+                if rv > moverange[0]:
+                    rv = moverange[0]
+            
+            elif heading == "XR":
+                rv = abs((trace * timerange) + moverange[0])
+                
+                if rv < moverange[0]:
+                    rv = moverange[0]
+                elif rv > moverange[1]:
+                    rv = moverange[1]
+            
+            return rv
+        
+        
+        def waterfall(self, st):
+            _("""Este método ejecuta la iteración del beatmap para mover las
+            notas hacia la línea de juicio.""")
+            
+            for sp, stamp, lane in self.spritegroup:
+                if lane=="LEFT" and st > stamp - self.map_delta:
+                    sp.x = self.notetrace((550, 430), "XL", stamp, st)
+                    sp.y = self.notetrace((-120, 530), "Y", stamp, st)
+                
+                if lane=="RIGHT" and st > stamp - self.map_delta:
+                    sp.x = self.notetrace((650, 765), "XR", stamp, st)
+                    sp.y = self.notetrace((-120, 530), "Y", stamp, st)
+                
+                if st > stamp + 0.9:
+                    sp.destroy()
+            
+            return self.waterfall_tick
+        
+        
+        
+        
+        
+        def longest_beatmap(self):
+            _("""Este método retorna un objeto iterable `itertools.zip_longest` con el
+            beatmap para la visualización de los taps en una screen. Esto ayuda a
+            iterar el beatmap con solo 1 bucle for en una screen =D
+
+            Esto debe ser llamado posterior a instanciar la clase. No recibe ningún
+            argumento en particular.""")
+            
+            return itertools.zip_longest(self.lane_L, self.lane_R, fillvalue = "End")
+        
+        
+        def accuracy_rate(self):
+            _("""Este método devuelve una tupla con la precisión media del jugador
+            durante la partida, y la tendencia de reacción (en atraso o en adelanto)
+            con flechas.
+
+            **Formato de retorno:**
+            (Tiempo de reacción media, tendencia de reacción)
+
+            Los valores de precisión media son retornados en milisegundos, mientras
+            que las flechas de tendencia de reacción son retornadas como cadenas de texto.
+            Puedes usar este método para obtener estadísticas durante la partida o
+            al finalizar =D""")
+            
+            average_ms = 0.0
+            average_percent = 0.0
+            
+            
+            if len(self.timestamp_log) > 0:
+                average_ms = round(sum(self.timestamp_log) / len(self.timestamp_log), 4) * 1000.0
+                average_percent = 100.0 - abs(average_ms)
+            
+            
+            if average_ms == 0.0:
+                reaction = u"{font=DejaVuSans.ttf}⇋{/font}"
+            elif average_ms < 0.0:
+                reaction = u"{font=DejaVuSans.ttf}◂{/font}"
+            elif average_ms > 0.0:
+                reaction = u"{font=DejaVuSans.ttf}▸{/font}"
+            
+            return average_ms, reaction, average_percent
+        
+        
+        def is_running(self):
+            _("""Este método retorna `True` si el mapa aún se está ejecutando. En el
+            caso contrario, retorna `False` si se recorrieron todas las notas del
+            Beatmap.""")
+            
+            return self.running["left"] or self.running["right"]
+# Decompiled by unrpyc: https://github.com/CensoredUsername/unrpyc
