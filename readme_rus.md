@@ -18,9 +18,9 @@
 [![license-badge]][license] [![renpy-badge]][renpy] [![release-badge]][release] ![status-badge]
 
 <h5 align = "center">
-  [Español](https://github.com/CharlieFuu69/RenPy_RhythmBeats/releases/tag/v1.00.1b_module](https://github.com/CharlieFuu69/RenPy_RhythmBeats#readme).
-  [English](https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_eng.md).
-  [Русский](https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_rus.md).
+  [Español]:https://github.com/CharlieFuu69/RenPy_RhythmBeats.
+  [English]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_eng.md).
+  [Русский]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_rus.md).
     <i>[Модуль был выпущен и документирован - началась фаза бета-тестирования!]</i>
 </h5>
 
