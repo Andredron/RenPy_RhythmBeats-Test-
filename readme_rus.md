@@ -21,7 +21,9 @@
   [Español]:https://github.com/CharlieFuu69/RenPy_RhythmBeats.
   [English]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_eng.md).
   [Русский]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_rus.md).
-    <i>[Модуль был выпущен и документирован - началась фаза бета-тестирования!]</i>
+  
+  
+  <i>[Модуль был выпущен и документирован - началась фаза бета-тестирования!]</i>
 </h5>
 
 <p>
