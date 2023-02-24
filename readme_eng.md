@@ -18,7 +18,12 @@
 [![license-badge]][license] [![renpy-badge]][renpy] [![release-badge]][release] ![status-badge]
 
 <h5 align = "center">
-    <i>[The module has been released and documented - the beta testing phase has started!]</i>
+  [Español]:https://github.com/CharlieFuu69/RenPy_RhythmBeats.
+  [English]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_eng.md).
+  [Русский]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_rus.md).
+  
+  
+  <i>[The module has been released and documented - the beta testing phase has started!]</i>
 </h5>
 
 <p>
