@@ -18,6 +18,11 @@
 [![license-badge]][license] [![renpy-badge]][renpy] [![release-badge]][release] ![status-badge]
 
 <h5 align = "center">
+  [Español]:https://github.com/CharlieFuu69/RenPy_RhythmBeats.
+  [English]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_eng.md).
+  [Русский]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_rus.md).
+  
+
     <i>[El módulo ha sido liberado y documentado - ¡Fase beta iniciada!]</i>
 </h5>
 
