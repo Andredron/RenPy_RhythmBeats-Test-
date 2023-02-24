@@ -23,7 +23,7 @@
   [Русский]:(https://github.com/Andredron/RenPy_RhythmBeats-Test-/blob/main/readme_rus.md).
   
 
-    <i>[El módulo ha sido liberado y documentado - ¡Fase beta iniciada!]</i>
+  <i>[El módulo ha sido liberado y documentado - ¡Fase beta iniciada!]</i>
 </h5>
 
 <p>
